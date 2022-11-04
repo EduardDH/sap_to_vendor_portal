@@ -58,9 +58,11 @@ def main_program():
                         (0-VBRP.NETWR) AS vendor_net_revenue,\
                         VBAK.ZPAYMENTPROVIDER AS provider,\
                         VBAK.VBELN,\
-                        vbak.KNUMV\
+                        vbak.KNUMV,\
+                        VBRK.MWSBK as tax_charge\
                         FROM VBAK\
                         left JOIN VBRP ON VBAK.VBELN  = VBRP.AUBEL\
+                        left JOIN VBRK ON VBRP.VBELN  = VBRK.VBELN\
                         WHERE VBAK.BSTNK = 'xyke-a66l'\
                         ORDER by VBRP.VBELN desc"
                        )
@@ -90,13 +92,16 @@ def main_program():
         data['vendor_charges'] = {}
 
         data['payment']['provider'] = row[5]
-
+        data['tax']['tax_charge'] = str(row[8])
         VBAK_VBELN = row[6]
         VBAK_KNUMV = row[7]
+
         discount_vendor = {}
-        #discount_vendor['owner'] = 'Vendor'
         discount_plaform = {}
-        #discount_plaform['owner'] = 'Platform'
+        ZVAM = 0
+        ZVA2 = 0
+        ZVA3 = 0
+
         cursor.execute("SELECT KSCHL, KWERT FROM PRCD_ELEMENTS pe \
                 WHERE pe.KNUMV  = '" + VBAK_KNUMV + "'"
                        )
@@ -130,6 +135,38 @@ def main_program():
                     data['delivery']['gross_fee'] = str(KWERT)
                 case 'ZDF1':
                     data['subtotal']['net_fee'] = str(KWERT)
+                case 'Z075':
+                    data['voucher']['gross_amount'] = str(KWERT)
+                    data['voucher']['owner'] = 'Vendor'
+                case 'ZVO1':
+                    data['voucher']['net_amount'] = str(KWERT)
+                case 'Z077':
+                    data['voucher']['gross_amount'] = str(KWERT)
+                    data['voucher']['owner'] = 'Platform'
+                case 'Z076':
+                    data['voucher']['net_amount'] = str(KWERT)
+                case 'ZJF1':
+                    data['jocker']['gross_fee'] = str(KWERT)
+                case 'ZJF2':
+                    data['jocker']['net_fee'] = str(KWERT)
+                case 'ZSFG':
+                    data['customer_fee']['gross_service_fee'] = str(KWERT)
+                case 'ZSFN':
+                    data['customer_fee']['net_service_fee'] = str(KWERT)
+                case 'Z024':
+                    data['customer_fee']['gross_container_fee'] = str(KWERT)
+                case 'Z04E':
+                    data['customer_fee']['gross_mov_fee'] = str(KWERT)
+                case 'ZMV0':
+                    data['customer_fee']['net_mov_fee'] = str(KWERT)
+                case 'ZVAM':
+                    ZVAM = KWERT
+                case 'ZVA2':
+                    ZVA2 = KWERT
+                case 'ZVA3':
+                    ZVA3 = KWERT
+
+        data['tax']['total_amount'] = str(ZVAM + ZVA2 + ZVA3)
 
         if 'gross_delivery_amount' in discount_vendor:
             discount_vendor['owner'] = 'Vendor'
