@@ -61,13 +61,13 @@ def main_program():
                             VBAK.NETWR AS vendor_net_revenue,\
                             VBAK.ZPAYMENTPROVIDER AS provider,\
                             VBAK.VBELN,\
-                            vbak.KNUMV,\
+                            VBAK.KNUMV,\
                             VBRK.MWSBK as tax_charge,\
                             VBRK.VBELN,\
                             VBKD.BSARK as is_cash, \
-                            vbak.AUART,\
-                            VBAP.ARKTX as reason\
-                            VBAP.ABSTK as is_cancelled\
+                            VBAK.AUART,\
+                            VBAP.ARKTX as reason,\
+                            VBAK.ABSTK as is_cancelled\
                             FROM VBAK\
                             left JOIN VBRP ON VBAK.VBELN  = VBRP.AUBEL\
                             left JOIN VBRK ON VBRP.VBELN  = VBRK.VBELN\
