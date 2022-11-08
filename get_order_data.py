@@ -81,6 +81,25 @@ def main_program():
             row = cursor.fetchone()
             if row is not None:
                 data = {}
+
+                # Order level
+                global_entity_id = row[0]
+                data['global_entity_id'] = row[0]
+                if data['global_entity_id'] == 'FOODPANDA_TW':
+                    dec_places = 100
+                else:
+                    dec_places = 1
+                data['vendor_id'] = row[1][0: 4]
+                data['order_id'] = row[1]
+                data['created_at'] = row[2]
+                data['updated_at'] = str(row[3])
+                data['vendor_net_revenue'] = str(-1*dec_places*row[4])
+                if row[12] == 'C':
+                    data['is_cancelled'] = 'TRUE'
+                else:
+                    data['is_cancelled'] = 'FALSE'
+
+                # Initialize after filling order level to keep right order of fields
                 data['payout'] = {}
                 data['subtotal'] = {}
                 data['payment'] = {}
@@ -101,19 +120,6 @@ def main_program():
                 commission_fixed = {}
                 commission_tiers = {}
 
-                # Order level
-                global_entity_id = row[0]
-                data['global_entity_id'] = row[0]
-                if data['global_entity_id'] == 'FOODPANDA_TW':
-                    dec_places = 100
-                else:
-                    dec_places = 1
-                data['vendor_id'] = row[1][0: 4]
-                data['order_id'] = row[1]
-                data['created_at'] = row[2]
-                data['updated_at'] = str(row[3])
-                data['vendor_net_revenue'] = str(-1*dec_places*row[4])
-
                 data['payout']['vendor_amount'] = data['vendor_net_revenue']
                 data['payment']['provider'] = row[5]
 
@@ -128,11 +134,6 @@ def main_program():
                 VBAK_KNUMV = row[7]
                 VBAK_AUART = row[11]
                 VBAP_ARKTX = row[12]
-
-                if row[12] == 'C':
-                    data['is_cancelled'] = 'TRUE'
-                else:
-                    data['is_cancelled'] = 'FALSE'
 
                 ZVAM = 0
                 ZVA2 = 0
@@ -156,7 +157,7 @@ def main_program():
                         case 'Z051':
                             data['customer_paid_amount'] = str(0 - KWERT)
                             data['payment']['type'] = 'corporate'
-                        case 'Z050', 'Z053':
+                        case 'Z050' | 'Z053':
                             data['customer_paid_amount'] = str(0 - KWERT)
                             data['payment']['type'] = 'cash'
                         # Subtotal
@@ -174,7 +175,7 @@ def main_program():
                                 KWERT)
                         case 'Z04K':
                             discount_vendor['net_delivery_amount'] = str(KWERT)
-                        case 'Z04F', 'ZC01':  # ZC01 for TW, incl all discounts and vouchers
+                        case 'Z04F' | 'ZC01':  # ZC01 for TW, incl all discounts and vouchers
                             discount_plaform['gross_food_amount'] = str(KWERT)
                         case 'Z064':
                             discount_plaform['net_food_amount'] = str(KWERT)
@@ -220,7 +221,7 @@ def main_program():
                         case 'ZMV0':
                             data['customer_fee']['net_mov_fee'] = str(KWERT)
                         # Tip
-                        case 'ZTP1', 'ZTP2':
+                        case 'ZTP1' | 'ZTP2':
                             ZTP1_2 += KWERT
                             data['tip']['gross_amount'] = str(ZTP1_2)
                         # Comission
