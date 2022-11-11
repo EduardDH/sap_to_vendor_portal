@@ -67,241 +67,268 @@ def main_program():
                             VBKD.BSARK as is_cash, \
                             VBAK.AUART,\
                             VBAP.ARKTX as reason,\
-                            VBAK.ABSTK as is_cancelled\
+                            VBAK.ABSTK as is_cancelled,\
+                            VBAP.ABGRU as canc_status,\
+                            VBAP.PSTYV\
                             FROM VBAK\
                             left JOIN VBRP ON VBAK.VBELN  = VBRP.AUBEL\
                             left JOIN VBRK ON VBRP.VBELN  = VBRK.VBELN\
                             left JOIN VBKD ON VBKD.VBELN  = VBAK.VBELN\
                             left JOIN VBAP ON VBAP.VBELN  = VBAK.VBELN\
-                            WHERE VBAK.BSTNK='" + order_id[0] + "'\
+                            WHERE VBAK.BSTNK LIKE '" + order_id[0] + "%'\
                             ORDER by VBRP.VBELN desc"
                            )
+            data = {}
 
-            # for num, row in enumerate(cursor):
-            row = cursor.fetchone()
-            if row is not None:
-                data = {}
+            rows = cursor.fetchall()
 
-                # Order level
-                global_entity_id = row[0]
-                data['global_entity_id'] = row[0]
-                if data['global_entity_id'] == 'FOODPANDA_TW':
-                    dec_places = 100
+            if len(rows) == 0:
+                print(order_id[0] + ' not found!')
+                continue
+
+            if len(rows) == 1:
+                row = rows[0]
+                if row[13] == '99':
+                    data['is_cancelled'] = 'TRUE'
                 else:
-                    dec_places = 1
-                data['vendor_id'] = row[1][0: 4]
-                data['order_id'] = row[1]
-                data['created_at'] = row[2]
-                data['updated_at'] = str(row[3])
-                data['vendor_net_revenue'] = str(-1*dec_places*row[4])
-                if row[12] == 'C':
+                    data['is_cancelled'] = 'FALSE'
+            else:  # Count number of ZP2 for order_id*, if Even, then order is cancelled
+                for row in rows:
+                    zp2_counter = 0
+                    if row[14] == 'ZP2':
+                        zp2_counter += 1
+                if zp2_counter % 2 == 0:
                     data['is_cancelled'] = 'TRUE'
                 else:
                     data['is_cancelled'] = 'FALSE'
 
-                # Initialize after filling order level to keep right order of fields
-                data['payout'] = {}
-                data['subtotal'] = {}
-                data['payment'] = {}
-                data['discount'] = []
-                data['delivery'] = {}
-                data['voucher'] = {}
-                data['commission'] = []
-                data['joker'] = {}
-                data['customer_refund'] = {}
-                data['vendor_refund'] = {}
-                data['customer_fee'] = {}
-                data['tip'] = {}
-                data['tax'] = {}
-                data['vendor_charges'] = {}
-                discount_vendor = {}
-                discount_plaform = {}
-                commission_standard = {}
-                commission_fixed = {}
-                commission_tiers = {}
+                # TODO: fix array sorting
+                # sort by VBAK.VBELN
+                #rows = rows[rows[:, 6].argsort()]
+                # sort by VBAK.BSTNK
+                #rows = rows[rows[:, 1].argsort(kind='mergesort')]
+                row = rows[len(rows)-1]
 
-                data['payout']['vendor_amount'] = data['vendor_net_revenue']
-                data['payment']['provider'] = row[5]
+            # Order level
+            global_entity_id = row[0]
+            data['global_entity_id'] = row[0]
+            if data['global_entity_id'] == 'FOODPANDA_TW':
+                dec_places = 100
+            else:
+                dec_places = 1
+            data['vendor_id'] = row[1][0: 4]
+            data['order_id'] = row[1]
+            data['created_at'] = row[2]
+            data['updated_at'] = str(row[3])
+            data['vendor_net_revenue'] = str(-1*dec_places*row[4])
+            # if row[12] == 'C':
+            #     data['is_cancelled'] = 'TRUE'
+            # else:
+            #     data['is_cancelled'] = 'FALSE'
 
-                if row[10] == '01':
-                    data['payment']['is_cash'] = 'FALSE'
-                elif row[10] == '02':
-                    data['payment']['is_cash'] = 'TRUE'
+            # Initialize after filling order level to keep right order of fields
+            data['payout'] = {}
+            data['subtotal'] = {}
+            data['payment'] = {}
+            data['discount'] = []
+            data['delivery'] = {}
+            data['voucher'] = {}
+            data['commission'] = []
+            data['joker'] = {}
+            data['customer_refund'] = {}
+            data['vendor_refund'] = {}
+            data['customer_fee'] = {}
+            data['tip'] = {}
+            data['tax'] = {}
+            data['vendor_charges'] = {}
+            discount_vendor = {}
+            discount_plaform = {}
+            commission_standard = {}
+            commission_fixed = {}
+            commission_tiers = {}
 
-                data['tax']['tax_charge'] = str(row[8])
-                VBRP_NETWR = row[4]
-                VBAK_VBELN = row[6]
-                VBAK_KNUMV = row[7]
-                VBAK_AUART = row[11]
-                VBAP_ARKTX = row[12]
+            data['payout']['vendor_amount'] = data['vendor_net_revenue']
+            data['payment']['provider'] = row[5]
 
-                ZVAM = 0
-                ZVA2 = 0
-                ZVA3 = 0
-                ZTP1_2 = 0
+            if row[10] == '01':
+                data['payment']['is_cash'] = 'FALSE'
+            elif row[10] == '02':
+                data['payment']['is_cash'] = 'TRUE'
 
-                # DFKKOP_XBLNR =
+            data['tax']['tax_charge'] = str(row[8])
+            VBRP_NETWR = row[4]
+            VBAK_VBELN = row[6]
+            VBAK_KNUMV = row[7]
+            VBAK_AUART = row[11]
+            VBAP_ARKTX = row[12]
 
-                cursor.execute("SELECT KSCHL, KWERT, KBETR FROM PRCD_ELEMENTS pe \
-                        WHERE pe.KNUMV  = '" + VBAK_KNUMV + "'"
-                               )
+            ZVAM = 0
+            ZVA2 = 0
+            ZVA3 = 0
+            ZTP1_2 = 0
 
-                pe = cursor.fetchall()
-                for KSCHL, KWERT, KBETR in pe:
-                    KWERT = dec_places*KWERT
-                    match KSCHL:
-                        # Customer paid amount, payment type
-                        case 'Z052':
-                            data['customer_paid_amount'] = str(0 - KWERT)
-                            data['payment']['type'] = 'online'
-                        case 'Z051':
-                            data['customer_paid_amount'] = str(0 - KWERT)
-                            data['payment']['type'] = 'corporate'
-                        case 'Z050' | 'Z053':
-                            data['customer_paid_amount'] = str(0 - KWERT)
-                            data['payment']['type'] = 'cash'
-                        # Subtotal
-                        case 'Z04C':
-                            data['subtotal']['gross_amount'] = str(KWERT)
-                        case 'Z022':
-                            data['subtotal']['net_amount'] = str(KWERT)
-                        # Discount
-                        case 'Z04G':
-                            discount_vendor['gross_food_amount'] = str(KWERT)
-                        case 'Z062':
-                            discount_vendor['net_food_amount'] = str(KWERT)
-                        case 'Z04L':
-                            discount_vendor['gross_delivery_amount'] = str(
-                                KWERT)
-                        case 'Z04K':
-                            discount_vendor['net_delivery_amount'] = str(KWERT)
-                        case 'Z04F' | 'ZC01':  # ZC01 for TW, incl all discounts and vouchers
-                            discount_plaform['gross_food_amount'] = str(KWERT)
-                        case 'Z064':
-                            discount_plaform['net_food_amount'] = str(KWERT)
-                        case 'Z079':
-                            discount_plaform['gross_delivery_amount'] = str(
-                                KWERT)
-                        case 'Z078':
-                            discount_plaform['net_delivery_amount'] = str(
-                                KWERT)
-                        # Delivery
-                        case 'Z04D':
-                            data['delivery']['gross_fee'] = str(KWERT)
-                        case 'ZDF1':
-                            data['delivery']['net_fee'] = str(KWERT)
-                        # Voucher
-                        case 'Z075':
-                            data['voucher']['gross_amount'] = str(KWERT)
-                            data['voucher']['owner'] = 'Vendor'
-                        case 'ZVO1':
-                            data['voucher']['net_amount'] = str(KWERT)
-                        case 'Z077':
-                            data['voucher']['gross_amount'] = str(KWERT)
-                            data['voucher']['owner'] = 'Platform'
-                        case 'Z076':
-                            data['voucher']['net_amount'] = str(KWERT)
-                        # Joker
-                        case 'ZJF1':
-                            data['joker']['gross_fee'] = str(KWERT)
-                        case 'ZJF2':
-                            data['joker']['net_fee'] = str(KWERT)
-                         # Customer Fee
-                        case 'ZSFG':
-                            data['customer_fee']['gross_service_fee'] = str(
-                                KWERT)
-                        case 'ZSFN':
-                            data['customer_fee']['net_service_fee'] = str(
-                                KWERT)
-                        case 'Z024':
-                            data['customer_fee']['gross_container_fee'] = str(
-                                KWERT)
-                        case 'Z04E':
-                            data['customer_fee']['gross_mov_fee'] = str(KWERT)
-                        case 'ZMV0':
-                            data['customer_fee']['net_mov_fee'] = str(KWERT)
-                        # Tip
-                        case 'ZTP1' | 'ZTP2':
-                            ZTP1_2 += KWERT
-                            data['tip']['gross_amount'] = str(ZTP1_2)
-                        # Comission
-                        case 'Z02N':
-                            commission_standard['base'] = str(KWERT)
-                        case 'ZCP2':
-                            commission_standard['rate'] = str(KBETR)
-                            commission_standard['amount'] = str(KWERT)
-                            commission_standard['type'] = 'Standard'
-                        case 'Z02T':
-                            commission_tiers['base'] = str(KWERT)  # ?
-                            commission_tiers['rate'] = str(KBETR)
-                            commission_tiers['amount'] = str(KWERT)
-                            commission_tiers['type'] = 'Tiers based commison'
-                        case 'ZCP1':
-                            commission_fixed['amount'] = str(KWERT)
-                            commission_fixed['type'] = 'Fixed'
-                        case 'MWST':
-                            MWST = str(KWERT)
-                        case 'Z04R':  # TW relevant only
-                            Z04R = KWERT
+            # DFKKOP_XBLNR =
+
+            cursor.execute("SELECT KSCHL, KWERT, KBETR FROM PRCD_ELEMENTS pe \
+                    WHERE pe.KNUMV  = '" + VBAK_KNUMV + "'"
+                           )
+
+            pe = cursor.fetchall()
+            for KSCHL, KWERT, KBETR in pe:
+                KWERT = dec_places*KWERT
+                match KSCHL:
+                    # Customer paid amount, payment type
+                    case 'Z052':
+                        data['customer_paid_amount'] = str(0 - KWERT)
+                        data['payment']['type'] = 'online'
+                    case 'Z051':
+                        data['customer_paid_amount'] = str(0 - KWERT)
+                        data['payment']['type'] = 'corporate'
+                    case 'Z050' | 'Z053':
+                        data['customer_paid_amount'] = str(0 - KWERT)
+                        data['payment']['type'] = 'cash'
+                    case 'ZOC2':
+                        data['payment']['gross_fee'] = str(KWERT)
+                    # Subtotal
+                    case 'Z04C':
+                        data['subtotal']['gross_amount'] = str(KWERT)
+                    case 'Z022':
+                        data['subtotal']['net_amount'] = str(KWERT)
+                    # Discount
+                    case 'Z04G':
+                        discount_vendor['gross_food_amount'] = str(KWERT)
+                    case 'Z062':
+                        discount_vendor['net_food_amount'] = str(KWERT)
+                    case 'Z04L':
+                        discount_vendor['gross_delivery_amount'] = str(
+                            KWERT)
+                    case 'Z04K':
+                        discount_vendor['net_delivery_amount'] = str(KWERT)
+                    case 'Z04F' | 'ZC01':  # ZC01 for TW, incl all discounts and vouchers
+                        discount_plaform['gross_food_amount'] = str(KWERT)
+                    case 'Z064':
+                        discount_plaform['net_food_amount'] = str(KWERT)
+                    case 'Z079':
+                        discount_plaform['gross_delivery_amount'] = str(
+                            KWERT)
+                    case 'Z078':
+                        discount_plaform['net_delivery_amount'] = str(
+                            KWERT)
+                    # Delivery
+                    case 'Z04D':
+                        data['delivery']['gross_fee'] = str(KWERT)
+                    case 'ZDF1':
+                        data['delivery']['net_fee'] = str(KWERT)
+                    # Voucher
+                    case 'Z075':
+                        data['voucher']['gross_amount'] = str(KWERT)
+                        data['voucher']['owner'] = 'Vendor'
+                    case 'ZVO1':
+                        data['voucher']['net_amount'] = str(KWERT)
+                    case 'Z077':
+                        data['voucher']['gross_amount'] = str(KWERT)
+                        data['voucher']['owner'] = 'Platform'
+                    case 'Z076':
+                        data['voucher']['net_amount'] = str(KWERT)
+                    # Joker
+                    case 'ZJF1':
+                        data['joker']['gross_fee'] = str(KWERT)
+                    case 'ZJF2':
+                        data['joker']['net_fee'] = str(KWERT)
+                        # Customer Fee
+                    case 'ZSFG':
+                        data['customer_fee']['gross_service_fee'] = str(
+                            KWERT)
+                    case 'ZSFN':
+                        data['customer_fee']['net_service_fee'] = str(
+                            KWERT)
+                    case 'Z024':
+                        data['customer_fee']['gross_container_fee'] = str(
+                            KWERT)
+                    case 'Z04E':
+                        data['customer_fee']['gross_mov_fee'] = str(KWERT)
+                    case 'ZMV0':
+                        data['customer_fee']['net_mov_fee'] = str(KWERT)
+                    # Tip
+                    case 'ZTP1' | 'ZTP2':
+                        ZTP1_2 += KWERT
+                        data['tip']['gross_amount'] = str(ZTP1_2)
+                    # Comission
+                    case 'Z02N':
+                        commission_standard['base'] = str(KWERT)
+                    case 'ZCP2':
+                        commission_standard['rate'] = str(KBETR)
+                        commission_standard['amount'] = str(KWERT)
+                        commission_standard['type'] = 'Standard'
+                    case 'Z02T':
+                        commission_tiers['base'] = str(KWERT)  # ?
+                        commission_tiers['rate'] = str(KBETR)
+                        commission_tiers['amount'] = str(KWERT)
+                        commission_tiers['type'] = 'Tiers based commison'
+                    case 'ZCP1':
+                        commission_fixed['amount'] = str(KWERT)
+                        commission_fixed['type'] = 'Fixed'
+                    case 'MWST':
+                        MWST = str(KWERT)
+                    case 'Z04R':  # TW relevant only
+                        Z04R = KWERT
+                        data['vendor_refund']['gross_amount'] = str(
+                            ZPR0 + Z04R)
+                    case 'ZPR0':
+                        if VBAK_AUART == 'ZAC0' & VBRP_NETWR < 0:
+                            ZPR0 = KWERT
                             data['vendor_refund']['gross_amount'] = str(
                                 ZPR0 + Z04R)
-                        case 'ZPR0':
-                            if VBAK_AUART == 'ZAC0' & VBRP_NETWR < 0:
-                                ZPR0 = KWERT
-                                data['vendor_refund']['gross_amount'] = str(
-                                    ZPR0 + Z04R)
-                                data['vendor_refund']['net_amount'] = str(
-                                    KWERT)
-                                data['vendor_refund']['reason'] = VBAP_ARKTX
-                            elif VBAK_AUART == 'ZAC0' & VBRP_NETWR > 0:
-                                data['vendor_charges']['gross_amount'] = str(
-                                    KWERT)
-                                data['vendor_charges']['net_amount'] = str(
-                                    KWERT)
-                                data['vendor_charges']['reason'] = VBAP_ARKTX
-                        # Tax total_amount
-                        case 'ZVAM':
-                            ZVAM = KWERT
-                        case 'ZVA2':
-                            ZVA2 = KWERT
-                        case 'ZVA3':
-                            ZVA3 = KWERT
+                            data['vendor_refund']['net_amount'] = str(
+                                KWERT)
+                            data['vendor_refund']['reason'] = VBAP_ARKTX
+                        elif VBAK_AUART == 'ZAC0' & VBRP_NETWR > 0:
+                            data['vendor_charges']['gross_amount'] = str(
+                                KWERT)
+                            data['vendor_charges']['net_amount'] = str(
+                                KWERT)
+                            data['vendor_charges']['reason'] = VBAP_ARKTX
+                    # Tax total_amount
+                    case 'ZVAM':
+                        ZVAM = KWERT
+                    case 'ZVA2':
+                        ZVA2 = KWERT
+                    case 'ZVA3':
+                        ZVA3 = KWERT
 
-                data['tax']['total_amount'] = str(ZVAM + ZVA2 + ZVA3)
+            data['tax']['total_amount'] = str(ZVAM + ZVA2 + ZVA3)
 
-                if 'gross_delivery_amount' in discount_vendor:
-                    discount_vendor['owner'] = 'Vendor'
-                    data['discount'].append(discount_vendor)
+            if 'gross_delivery_amount' in discount_vendor:
+                discount_vendor['owner'] = 'Vendor'
+                data['discount'].append(discount_vendor)
 
-                if 'gross_delivery_amount' in discount_plaform:
-                    discount_vendor['owner'] = 'Platform'
-                    data['discount'].append(discount_plaform)
+            if 'gross_delivery_amount' in discount_plaform:
+                discount_vendor['owner'] = 'Platform'
+                data['discount'].append(discount_plaform)
 
-                if 'amount' in commission_standard:
-                    data['commission'].append(commission_standard)
+            if 'amount' in commission_standard:
+                data['commission'].append(commission_standard)
 
-                if 'amount' in commission_fixed:
-                    data['commission'].append(commission_fixed)
+            if 'amount' in commission_fixed:
+                data['commission'].append(commission_fixed)
 
-                if 'amount' in commission_tiers:
-                    data['commission'].append(commission_tiers)
+            if 'amount' in commission_tiers:
+                data['commission'].append(commission_tiers)
 
-                if 'net_amount' in data['vendor_refund']:
-                    data['vendor_refund']['gross_amount'] = str(
-                        float(data['vendor_refund']['gross_amount']) + MWST)
+            if 'net_amount' in data['vendor_refund']:
+                data['vendor_refund']['gross_amount'] = str(
+                    float(data['vendor_refund']['gross_amount']) + MWST)
 
-                if 'net_amount' in data['vendor_charges']:
-                    data['vendor_charges']['gross_amount'] = str(
-                        float(data['vendor_charges']['gross_amount']) + MWST)
+            if 'net_amount' in data['vendor_charges']:
+                data['vendor_charges']['gross_amount'] = str(
+                    float(data['vendor_charges']['gross_amount']) + MWST)
 
-                json_data = json.dumps(data, sort_keys=False, indent=4)
-                f = open("output/" + global_entity_id +
-                         "_" + order_id[0] + ".json", "w+")
-                f.write(json_data)
-                f.close()
-                print(global_entity_id + " " + order_id[0] + ' done!')
-            else:
-                print(order_id[0] + ' not found!')
+            json_data = json.dumps(data, sort_keys=False, indent=4)
+            f = open("output/" + global_entity_id +
+                     "_" + order_id[0] + ".json", "w+")
+            f.write(json_data)
+            f.close()
+            print(global_entity_id + " " + order_id[0] + ' done!')
     except:
         logging.exception('HANA DB connection error')
 
