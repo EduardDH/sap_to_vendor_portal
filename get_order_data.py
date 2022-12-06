@@ -62,8 +62,8 @@ def main_program():
                             VBAK.ZPAYMENTPROVIDER AS provider,\
                             VBAK.VBELN,\
                             VBAK.KNUMV,\
-                            VBRK.MWSBK as tax_charge,\
-                            VBRK.VBELN,\
+                            VBAP.MWSBP as tax_charge,\
+                            VBAK.VBELN as dummy,\
                             VBKD.BSARK as is_cash, \
                             VBAK.AUART,\
                             VBAP.ARKTX as reason,\
@@ -72,7 +72,6 @@ def main_program():
                             VBAP.PSTYV\
                             FROM VBAK\
                             left JOIN VBRP ON VBAK.VBELN  = VBRP.AUBEL\
-                            left JOIN VBRK ON VBRP.VBELN  = VBRK.VBELN\
                             left JOIN VBKD ON VBKD.VBELN  = VBAK.VBELN\
                             left JOIN VBAP ON VBAP.VBELN  = VBAK.VBELN\
                             WHERE VBAK.BSTNK LIKE '" + order_id[0] + "%'\
@@ -250,9 +249,10 @@ def main_program():
                     case 'ZMV0':
                         data['customer_fee']['net_mov_fee'] = str(KWERT)
                     # Tip
-                    case 'ZTP1' | 'ZTP2':
-                        ZTP1_2 += KWERT
-                        data['tip']['gross_amount'] = str(ZTP1_2)
+                    case 'ZTP1':
+                        data['tip']['net_amount'] = str(KWERT)
+                    case 'Z074':
+                        data['tip']['gross_amount'] = str(KWERT)
                     # Comission
                     case 'Z02N':
                         commission_standard['base'] = str(KWERT)
