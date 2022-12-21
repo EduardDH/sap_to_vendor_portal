@@ -139,28 +139,22 @@ def main_program():
             # else:
             #     data['is_cancelled'] = 'FALSE'
 
-            # Initialize after filling order level to keep right order of fields
             data['order_values'] = {}
             data['revenue'] = {}
-            data['payment'] = {}
-
-            # data['discount'] = []
 
             discount_vendor = {}
             discount_plaform = {}
             commission_standard = {}
             commission_fixed = {}
             commission_tiers = {}
-
-            # data['payout']['vendor_amount'] = data['vendor_net_revenue']
-            # data['payment']['provider'] = row[5]
+            vendor_refund = {}
+            vendor_charges = {}
 
             # if row[10] == '01':
             #     data['payment']['is_cash'] = 'FALSE'
             # elif row[10] == '02':
             #     data['payment']['is_cash'] = 'TRUE'
 
-            data['tax']['tax_charge'] = str(row[8])
             VBRP_NETWR = row[4]
             VBAK_VBELN = row[6]
             VBAK_KNUMV = row[7]
@@ -171,6 +165,8 @@ def main_program():
             ZVA2 = 0
             ZVA3 = 0
             ZTP1_2 = 0
+            ZOC1 = 0
+            ZOC2 = 0
 
             # DFKKOP_XBLNR =
             # total voucher+discount (when owner = vendor )
@@ -277,39 +273,30 @@ def main_program():
 
                     # Comission
                     case 'Z02N':
-                        commission_standard['base'] = str(KWERT)
+                        data['revenue']['commission_base'] = str(KWERT)
+                        commission_standard['commission_base'] = str(KWERT)
                     case 'ZCP2':
-                        commission_standard['rate'] = str(KBETR)
-                        commission_standard['amount'] = str(KWERT)
-                        commission_standard['type'] = 'Standard'
-                    case 'Z02T':
-                        commission_tiers['base'] = str(KWERT)  # ?
-                        commission_tiers['rate'] = str(KBETR)
-                        commission_tiers['amount'] = str(KWERT)
-                        commission_tiers['type'] = 'Tiers based commison'
+                        commission_standard['commision_rate'] = str(KBETR)
+                        commission_standard_amount_net = KWERT
+                    case 'Z02T' | 'Z04A':
+                        data['revenue']['commission_base'] = str(KWERT)
+                        commission_tiers['commission_base'] = str(KWERT)
+                        commission_tiers['commision_rate'] = str(KBETR)
+                        commission_tiers_amount_net = KWERT
                     case 'ZCP1':
-                        commission_fixed['amount'] = str(KWERT)
-                        commission_fixed['type'] = 'Fixed'
+                        commission_fixed_amount_net = KWERT
                     case 'MWST':
-                        MWST = str(KWERT)
+                        MWST = KBETR
                     case 'Z04R':  # TW relevant only
-                        Z04R = KWERT
-                        data['vendor_refund']['gross_amount'] = str(
-                            ZPR0 + Z04R)
+                        vendor_refund['net_amount'] = vendor_refund['net_amount'] + KWERT
+                    #Refund and charges
                     case 'ZPR0':
                         if VBAK_AUART == 'ZAC0' & VBRP_NETWR < 0:
-                            ZPR0 = KWERT
-                            data['vendor_refund']['gross_amount'] = str(
-                                ZPR0 + Z04R)
-                            data['vendor_refund']['net_amount'] = str(
-                                KWERT)
-                            data['vendor_refund']['reason'] = VBAP_ARKTX
+                            vendor_refund['net_amount'] = vendor_refund['net_amount'] + KWERT
+
                         elif VBAK_AUART == 'ZAC0' & VBRP_NETWR > 0:
-                            data['vendor_charges']['gross_amount'] = str(
-                                KWERT)
-                            data['vendor_charges']['net_amount'] = str(
-                                KWERT)
-                            data['vendor_charges']['reason'] = VBAP_ARKTX
+                            vendor_charges['net_amount'] = KWERT
+
                     # Tax total_amount
                     case 'ZVAM':
                         ZVAM = KWERT
@@ -325,7 +312,73 @@ def main_program():
             incentives_voucher_vendor = []
             incentives_voucher_platform = []
 
-            if incentives_food_vendor_gross_amount is not None:
+            if 'net_amount' in vendor_refund:
+                vendor_refund['reason'] = VBAP_ARKTX
+                vendor_refund['gross_amount'] = vendor_refund['net_amount'] * (
+                    1+MWST)
+                data['revenue']['vendor_refund'].append(vendor_refund)
+
+            if 'net_amount' in vendor_charges:
+                vendor_charges['reason'] = VBAP_ARKTX
+                vendor_charges['gross_amount'] = vendor_charges['net_amount'] * (
+                    1+MWST)
+                data['revenue']['vendor_charges'].append(vendor_charges)
+
+            # Comission
+            data['revenue']['commission'] = []
+
+            try:
+                commission_standard_amount_net
+            except NameError:
+                commission_standard_amount_net = 0
+                pass
+            else:
+                commission_standard['commission_type'] = 'standard'
+                commission_standard['commission_amount_net'] = str(
+                    commission_standard_amount_net)
+                commission_standard['commission_amount_gross'] = str(commission_standard_amount_net * (
+                    1+MWST))
+                data['revenue']['commission'].append(
+                    commission_standard)
+
+            try:
+                commission_fixed_amount_net
+            except NameError:
+                commission_fixed_amount_net = 0
+                pass
+            else:
+                commission_fixed['commission_type'] = 'fixed'
+                commission_fixed['commission_amount_net'] = str(
+                    commission_fixed_amount_net)
+                commission_fixed['commission_amount_gross'] = str(commission_fixed_amount_net * (
+                    1+MWST))
+                data['revenue']['commission'].append(
+                    commission_fixed)
+
+            try:
+                commission_tiers_amount_net
+            except NameError:
+                commission_tiers_amount_net = 0
+                pass
+            else:
+                commission_tiers['commission_type'] = 'commisson based tiers'
+                commission_tiers['commission_amount_net'] = str(
+                    commission_tiers_amount_net)
+                commission_tiers['commission_amount_gross'] = str(commission_tiers_amount_net * (
+                    1+MWST))
+                data['revenue']['commission'].append(
+                    commission_tiers)
+
+            data['revenue']['commission_amount_net'] = str(
+                commission_tiers_amount_net + commission_fixed_amount_net + commission_standard_amount_net)
+            data['revenue']['commission_amount_gross'] = str((commission_tiers_amount_net + commission_fixed_amount_net + commission_standard_amount_net) * (
+                1+MWST))
+
+            try:
+                incentives_food_vendor_gross_amount
+            except NameError:
+                pass
+            else:
                 incentives_food_vendor['gross_amount'] = incentives_food_vendor_gross_amount
                 incentives_food_vendor['net_amount'] = incentives_food_vendor_net_amount
                 incentives_food_vendor['type'] = 'food'
@@ -334,7 +387,11 @@ def main_program():
                 data['order_values']['incentives'].append(
                     incentives_food_vendor)
 
-            if incentives_food_platform_gross_amount is not None:
+            try:
+                incentives_food_platform_gross_amount
+            except NameError:
+                pass
+            else:
                 incentives_food_platform['gross_amount'] = incentives_food_platform_gross_amount
                 incentives_food_platform['net_amount'] = incentives_food_platform_net_amount
                 incentives_food_platform['type'] = 'food'
@@ -343,7 +400,11 @@ def main_program():
                 data['order_values']['incentives'].append(
                     incentives_food_platform)
 
-            if incentives_delivery_vendor_gross_amount is not None:
+            try:
+                incentives_delivery_vendor_gross_amount
+            except NameError:
+                pass
+            else:
                 incentives_delivery_vendor['gross_amount'] = incentives_delivery_vendor_gross_amount
                 incentives_delivery_vendor['net_amount'] = incentives_delivery_vendor_net_amount
                 incentives_delivery_vendor['type'] = 'food'
@@ -352,7 +413,11 @@ def main_program():
                 data['order_values']['incentives'].append(
                     incentives_delivery_vendor)
 
-            if incentives_delivery_platform_gross_amount is not None:
+            try:
+                incentives_delivery_platform_gross_amount
+            except NameError:
+                pass
+            else:
                 incentives_delivery_platform['gross_amount'] = incentives_delivery_platform_gross_amount
                 incentives_delivery_platform['net_amount'] = incentives_delivery_platform_net_amount
                 incentives_delivery_platform['type'] = 'food'
@@ -361,7 +426,11 @@ def main_program():
                 data['order_values']['incentives'].append(
                     incentives_delivery_platform)
 
-            if incentives_voucher_vendor_gross_amount is not None:
+            try:
+                incentives_voucher_vendor_gross_amount
+            except NameError:
+                pass
+            else:
                 incentives_voucher_vendor['gross_amount'] = incentives_voucher_vendor_gross_amount
                 incentives_voucher_vendor['net_amount'] = incentives_voucher_vendor_net_amount
                 incentives_voucher_vendor['type'] = 'food'
@@ -370,7 +439,11 @@ def main_program():
                 data['order_values']['incentives'].append(
                     incentives_voucher_vendor)
 
-            if incentives_voucher_platform_gross_amount is not None:
+            try:
+                incentives_voucher_platform_gross_amount
+            except NameError:
+                pass
+            else:
                 incentives_voucher_platform['gross_amount'] = incentives_voucher_platform_gross_amount
                 incentives_voucher_platform['net_amount'] = incentives_voucher_platform_net_amount
                 incentives_voucher_platform['type'] = 'food'
@@ -386,44 +459,16 @@ def main_program():
             data['order_values']['tax_inclusive_amount'] = ''
             data['order_values']['tax_exclusive_amount'] = ''
 
-            data['revenue']['payment_fee_net'] = ZOC2 + ZOC1
-            data['revenue']['payment_fee_gross'] = data['revenue']['payment_fee_net'] * \
-                (1 + MWST)
+            data['revenue']['payment_fee_net'] = str(ZOC2 + ZOC1)
+            data['revenue']['payment_fee_gross'] = str(
+                (ZOC2 + ZOC1) * (1 + MWST))
 
-            data['revenue']['payment_provider'] = row[5]
+            data['revenue']['payment_provider'] = str(row[5])
 
             data['revenue']['vendor_funded_delivery_fee_incentive_gross'] = 'TODO'
             data['revenue']['vendor_funded_delivery_fee_incentive_net'] = 'TODO'
 
-            # TODO
-            data['revenue']['commissions'] = []
-
             data['revenue']['tax_charge'] = str(row[8])
-
-            if 'gross_delivery_amount' in discount_vendor:
-                discount_vendor['owner'] = 'Vendor'
-                data['discount'].append(discount_vendor)
-
-            if 'gross_delivery_amount' in discount_plaform:
-                discount_vendor['owner'] = 'Platform'
-                data['discount'].append(discount_plaform)
-
-            if 'amount' in commission_standard:
-                data['commission'].append(commission_standard)
-
-            if 'amount' in commission_fixed:
-                data['commission'].append(commission_fixed)
-
-            if 'amount' in commission_tiers:
-                data['commission'].append(commission_tiers)
-
-            if 'net_amount' in data['vendor_refund']:
-                data['vendor_refund']['gross_amount'] = str(
-                    float(data['vendor_refund']['gross_amount']) + MWST)
-
-            if 'net_amount' in data['vendor_charges']:
-                data['vendor_charges']['gross_amount'] = str(
-                    float(data['vendor_charges']['gross_amount']) + MWST)
 
             json_data = json.dumps(data, sort_keys=False, indent=4)
             f = open("output/" + global_entity_id +
