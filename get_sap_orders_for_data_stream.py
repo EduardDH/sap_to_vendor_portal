@@ -58,7 +58,7 @@ def main_program():
                             VBAK.BSTNK AS order_id,\
                             VBAK.ZTIMESTAMP AS created_at,\
                             VBAK.UPD_TMSTMP AS updated_at,\
-                            VBAK.NETWR AS vendor_net_revenue,\
+                            VBAK.NETWR AS vendor_net_revenue_and_vendor_payout,\
                             VBAK.ZPAYMENTPROVIDER AS provider,\
                             VBAK.VBELN,\
                             VBAK.KNUMV,\
@@ -69,7 +69,7 @@ def main_program():
                             VBAP.ARKTX as reason,\
                             VBAK.ABSTK as is_cancelled,\
                             VBAP.ABGRU as canc_status,\
-                            VBAP.PSTYV\
+                            VBAK.WAERK as currency\
                             FROM VBAK\
                             left JOIN VBRP ON VBAK.VBELN  = VBRP.AUBEL\
                             left JOIN VBKD ON VBKD.VBELN  = VBAK.VBELN\
@@ -113,8 +113,8 @@ def main_program():
             data['vendor_id'] = row[1][0: 4]
             data['order_id'] = row[1]
             data['place_timestamp'] = ''
-            data['created_at'] = row[2]
-            data['timestamp'] = str(row[3])
+            data['created_at'] = convert_timestamp(str(row[2]))
+            data['timestamp'] = convert_timestamp(str(row[3]))
 
             global_entity_id = row[0]
 
@@ -123,11 +123,12 @@ def main_program():
             else:
                 dec_places = 1
 
-            data['currency'] = 'TODO'
+            data['currency'] = row[15]
             data['vendor_payout'] = str(-1*dec_places*row[4])
+            # Initialize to have the right order in JSON
+            data['customer_paid_amount'] = ''
 
-            data['customer_paid_amount'] = 'TODO'
-            data['vendor_net_revenue'] = 'TODO'
+            data['vendor_net_revenue'] = data['vendor_payout']
             data['is_cancelled'] = is_cancelled
 
             data['is_vendor_payout_paid'] = 'TODO'
@@ -142,8 +143,6 @@ def main_program():
             data['order_values'] = {}
             data['revenue'] = {}
 
-            discount_vendor = {}
-            discount_plaform = {}
             commission_standard = {}
             commission_fixed = {}
             commission_tiers = {}
@@ -156,7 +155,6 @@ def main_program():
             #     data['payment']['is_cash'] = 'TRUE'
 
             VBRP_NETWR = row[4]
-            VBAK_VBELN = row[6]
             VBAK_KNUMV = row[7]
             VBAK_AUART = row[11]
             VBAP_ARKTX = row[12]
@@ -164,18 +162,9 @@ def main_program():
             ZVAM = 0
             ZVA2 = 0
             ZVA3 = 0
-            ZTP1_2 = 0
             ZOC1 = 0
             ZOC2 = 0
 
-            # DFKKOP_XBLNR =
-            # total voucher+discount (when owner = vendor )
-            data['order_values']['incentive_value_gross_vendor'] = 'TODO'
-            data['order_values']['incentive_value_net_vendor'] = 'TODO'
-            data['order_values']['incentive_value_gross_platform'] = 'TODO'
-            data['order_values']['incentive_value_net_platform'] = 'TODO'
-            data['order_values']['incentive_value_gross_partner'] = 'TODO'
-            data['order_values']['incentive_value_net_partner'] = 'TODO'
             data['order_values']['incentives'] = []
 
             cursor.execute("SELECT KSCHL, KWERT, KBETR FROM PRCD_ELEMENTS pe \
@@ -244,15 +233,15 @@ def main_program():
 
                     # Customer paid amount, payment type
                     case 'Z052':
-                        data['customer_paid_amount'] = str(0 - KWERT)
+                        customer_paid_amount = 0 - KWERT
                         # data['payment']['type'] = 'online'
                         data['revenue']['payment_type'] = 'online'
                     case 'Z051':
-                        data['customer_paid_amount'] = str(0 - KWERT)
+                        customer_paid_amount = 0 - KWERT
                         # data['payment']['type'] = 'corporate'
                         data['revenue']['payment_type'] = 'corporate'
                     case 'Z050' | 'Z053':
-                        data['customer_paid_amount'] = str(0 - KWERT)
+                        customer_paid_amount = 0 - KWERT
                         # data['payment']['type'] = 'cash'
                         data['revenue']['payment_type'] = 'cash'
                     case 'ZOC2':
@@ -286,7 +275,7 @@ def main_program():
                     case 'ZCP1':
                         commission_fixed_amount_net = KWERT
                     case 'MWST':
-                        MWST = KBETR
+                        MWST = KBETR/100
                     case 'Z04R':  # TW relevant only
                         vendor_refund['net_amount'] = vendor_refund['net_amount'] + KWERT
                     #Refund and charges
@@ -305,12 +294,12 @@ def main_program():
                     case 'ZVA3':
                         ZVA3 = KWERT
 
-            incentives_food_vendor = []
-            incentives_food_platform = []
-            incentives_delivery_vendor = []
-            incentives_delivery_platform = []
-            incentives_voucher_vendor = []
-            incentives_voucher_platform = []
+            incentives_food_vendor = {}
+            incentives_food_platform = {}
+            incentives_delivery_vendor = {}
+            incentives_delivery_platform = {}
+            incentives_voucher_vendor = {}
+            incentives_voucher_platform = {}
 
             if 'net_amount' in vendor_refund:
                 vendor_refund['reason'] = VBAP_ARKTX
@@ -374,10 +363,12 @@ def main_program():
             data['revenue']['commission_amount_gross'] = str((commission_tiers_amount_net + commission_fixed_amount_net + commission_standard_amount_net) * (
                 1+MWST))
 
+            # order_values.incentives[]
             try:
                 incentives_food_vendor_gross_amount
             except NameError:
-                pass
+                incentives_food_vendor_gross_amount = 0
+                incentives_food_vendor_net_amount = 0
             else:
                 incentives_food_vendor['gross_amount'] = incentives_food_vendor_gross_amount
                 incentives_food_vendor['net_amount'] = incentives_food_vendor_net_amount
@@ -390,7 +381,8 @@ def main_program():
             try:
                 incentives_food_platform_gross_amount
             except NameError:
-                pass
+                incentives_food_platform_gross_amount = 0
+                incentives_food_platform_net_amount = 0
             else:
                 incentives_food_platform['gross_amount'] = incentives_food_platform_gross_amount
                 incentives_food_platform['net_amount'] = incentives_food_platform_net_amount
@@ -403,7 +395,8 @@ def main_program():
             try:
                 incentives_delivery_vendor_gross_amount
             except NameError:
-                pass
+                incentives_delivery_vendor_gross_amount = 0
+                incentives_delivery_vendor_net_amount = 0
             else:
                 incentives_delivery_vendor['gross_amount'] = incentives_delivery_vendor_gross_amount
                 incentives_delivery_vendor['net_amount'] = incentives_delivery_vendor_net_amount
@@ -416,7 +409,8 @@ def main_program():
             try:
                 incentives_delivery_platform_gross_amount
             except NameError:
-                pass
+                incentives_delivery_platform_gross_amount = 0
+                incentives_delivery_platform_net_amount = 0
             else:
                 incentives_delivery_platform['gross_amount'] = incentives_delivery_platform_gross_amount
                 incentives_delivery_platform['net_amount'] = incentives_delivery_platform_net_amount
@@ -429,7 +423,8 @@ def main_program():
             try:
                 incentives_voucher_vendor_gross_amount
             except NameError:
-                pass
+                incentives_voucher_vendor_gross_amount = 0
+                incentives_voucher_vendor_net_amount = 0
             else:
                 incentives_voucher_vendor['gross_amount'] = incentives_voucher_vendor_gross_amount
                 incentives_voucher_vendor['net_amount'] = incentives_voucher_vendor_net_amount
@@ -442,7 +437,8 @@ def main_program():
             try:
                 incentives_voucher_platform_gross_amount
             except NameError:
-                pass
+                incentives_voucher_platform_gross_amount = 0
+                incentives_voucher_platform_net_amount = 0
             else:
                 incentives_voucher_platform['gross_amount'] = incentives_voucher_platform_gross_amount
                 incentives_voucher_platform['net_amount'] = incentives_voucher_platform_net_amount
@@ -452,12 +448,26 @@ def main_program():
                 data['order_values']['incentives'].append(
                     incentives_voucher_platform)
 
+            # order_values.incentive_*
+            data['order_values']['incentive_value_gross_vendor'] = incentives_voucher_vendor_gross_amount + \
+                incentives_food_vendor_gross_amount
+            data['order_values']['incentive_value_net_vendor'] = incentives_voucher_vendor_net_amount + \
+                incentives_food_vendor_net_amount
+            data['order_values']['incentive_value_gross_platform'] = incentives_voucher_platform_gross_amount + \
+                incentives_food_platform_gross_amount
+            data['order_values']['incentive_value_net_platform'] = incentives_voucher_platform_net_amount + \
+                incentives_food_platform_net_amount
+            data['order_values']['incentive_value_gross_partner'] = 'N/A'
+            data['order_values']['incentive_value_net_partner'] = 'N/A'
+
+            data['customer_paid_amount'] = str(customer_paid_amount)
             data['order_values']['total_order_value_gross'] = data['customer_paid_amount']
-            data['order_values']['total_order_value_net'] = 'TODO'
+            data['order_values']['total_order_value_net'] = str(
+                customer_paid_amount - row[8])
 
             data['order_values']['total_tax_value'] = str(ZVAM + ZVA2 + ZVA3)
-            data['order_values']['tax_inclusive_amount'] = ''
-            data['order_values']['tax_exclusive_amount'] = ''
+            data['order_values']['tax_inclusive_amount'] = 'N/A'
+            data['order_values']['tax_exclusive_amount'] = 'N/A'
 
             data['revenue']['payment_fee_net'] = str(ZOC2 + ZOC1)
             data['revenue']['payment_fee_gross'] = str(
@@ -465,8 +475,8 @@ def main_program():
 
             data['revenue']['payment_provider'] = str(row[5])
 
-            data['revenue']['vendor_funded_delivery_fee_incentive_gross'] = 'TODO'
-            data['revenue']['vendor_funded_delivery_fee_incentive_net'] = 'TODO'
+            data['revenue']['vendor_funded_delivery_fee_incentive_gross'] = incentives_delivery_vendor_gross_amount
+            data['revenue']['vendor_funded_delivery_fee_incentive_net'] = incentives_delivery_vendor_net_amount
 
             data['revenue']['tax_charge'] = str(row[8])
 
@@ -480,7 +490,19 @@ def main_program():
         logging.exception('HANA DB connection error')
 
 
+def convert_timestamp(sap_time):
+    # Input '20221009152556.5070000'
+    # Output '2022-10-09T15:25:56Z'
+
+    time_rfc_3339 = sap_time[0:4] + '-' + sap_time[4:6] + \
+        '-' + sap_time[6:8] + '-T' + sap_time[8:10] + ':' + \
+        sap_time[10:12] + ':' + sap_time[12:14] + 'Z'
+
+    return time_rfc_3339
+
+
 main_program()
+
 
 # SE
 # pvyg-unj3
