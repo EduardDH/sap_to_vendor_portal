@@ -111,7 +111,7 @@ def main_program():
             # Order level
             data['global_entity_id'] = row[0]
             data['vendor_id'] = row[1][0: 4]
-            data['order_id'] = row[1]
+            data['order_id'] = row[1][0:9]
             data['place_timestamp'] = ''
             data['created_at'] = convert_timestamp(str(row[2]))
             data['timestamp'] = convert_timestamp(str(row[3]))
@@ -164,6 +164,7 @@ def main_program():
             ZVA3 = 0
             ZOC1 = 0
             ZOC2 = 0
+            MWST = 0
             incentives_food_vendor_gross_amount = 0
             incentives_food_vendor_net_amount = 0
             incentives_food_platform_gross_amount = 0
@@ -180,6 +181,11 @@ def main_program():
             commission_standard_amount_net = 0
             commission_fixed_amount_net = 0
             commission_tiers_amount_net = 0
+
+            customer_paid_amount = 0
+
+            vendor_refund_net_amount = 0
+            vendor_charges_net_amount = 0
 
             data['order_values']['incentives'] = []
 
@@ -228,10 +234,10 @@ def main_program():
                     case 'ZDF1':
                         data['order_values']['delivery_fee_net'] = str(KWERT)
                     # Customer Fee
-                    case 'Z024':
+                    case 'Z07C':
                         data['order_values']['container_charges_gross'] = str(
                             KWERT)
-                    case 'Z07C':
+                    case 'Z024':
                         data['order_values']['container_charges_net'] = str(
                             KWERT)
                     case 'Z04E':
@@ -271,9 +277,9 @@ def main_program():
                     case 'ZJF2':
                         data['revenue']['joker_fee_net'] = str(KWERT)
                     # Customer Fee
-                    case 'ZSFG':
+                    case 'ZSFG' | 'ZSC4':
                         data['revenue']['service_fee_gross'] = str(KWERT)
-                    case 'ZSFN':
+                    case 'ZSFN' | 'ZSC1':
                         data['revenue']['service_fee_net'] = str(KWERT)
 
                     # Comission
@@ -293,14 +299,14 @@ def main_program():
                     case 'MWST':
                         MWST = KBETR/100
                     case 'Z04R':  # TW relevant only
-                        vendor_refund['net_amount'] = vendor_refund['net_amount'] + KWERT
+                        vendor_refund_net_amount += KWERT
                     #Refund and charges
                     case 'ZPR0':
-                        if VBAK_AUART == 'ZAC0' & VBRP_NETWR < 0:
-                            vendor_refund['net_amount'] = vendor_refund['net_amount'] + KWERT
+                        if VBAK_AUART == 'ZAC0' and VBRP_NETWR < 0:
+                            vendor_refund_net_amount += KWERT
 
-                        elif VBAK_AUART == 'ZAC0' & VBRP_NETWR > 0:
-                            vendor_charges['net_amount'] = KWERT
+                        elif VBAK_AUART == 'ZAC0' and VBRP_NETWR > 0:
+                            vendor_charges_net_amount = KWERT
 
                     # Tax total_amount
                     case 'ZVAM':
@@ -317,16 +323,21 @@ def main_program():
             incentives_voucher_vendor = {}
             incentives_voucher_platform = {}
 
-            if 'net_amount' in vendor_refund:
+            data['revenue']['vendor_refund'] = []
+            data['revenue']['vendor_charges'] = []
+
+            if vendor_refund_net_amount > 0:
                 vendor_refund['reason'] = VBAP_ARKTX
-                vendor_refund['gross_amount'] = vendor_refund['net_amount'] * (
-                    1+MWST)
+                vendor_refund['net_amount'] = str(vendor_refund_net_amount)
+                vendor_refund['gross_amount'] = str(vendor_refund_net_amount * (
+                    1+MWST))
                 data['revenue']['vendor_refund'].append(vendor_refund)
 
-            if 'net_amount' in vendor_charges:
+            if vendor_charges_net_amount > 0:
                 vendor_charges['reason'] = VBAP_ARKTX
-                vendor_charges['gross_amount'] = vendor_charges['net_amount'] * (
-                    1+MWST)
+                vendor_charges['net_amount'] = str(vendor_charges_net_amount)
+                vendor_charges['gross_amount'] = str(vendor_charges_net_amount * (
+                    1+MWST))
                 data['revenue']['vendor_charges'].append(vendor_charges)
 
             # Comission
