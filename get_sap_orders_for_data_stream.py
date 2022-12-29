@@ -164,6 +164,22 @@ def main_program():
             ZVA3 = 0
             ZOC1 = 0
             ZOC2 = 0
+            incentives_food_vendor_gross_amount = 0
+            incentives_food_vendor_net_amount = 0
+            incentives_food_platform_gross_amount = 0
+            incentives_food_platform_net_amount = 0
+            incentives_delivery_vendor_gross_amount = 0
+            incentives_delivery_vendor_net_amount = 0
+            incentives_delivery_platform_gross_amount = 0
+            incentives_delivery_platform_net_amount = 0
+            incentives_voucher_vendor_gross_amount = 0
+            incentives_voucher_vendor_net_amount = 0
+            incentives_voucher_platform_gross_amount = 0
+            incentives_voucher_platform_net_amount = 0
+
+            commission_standard_amount_net = 0
+            commission_fixed_amount_net = 0
+            commission_tiers_amount_net = 0
 
             data['order_values']['incentives'] = []
 
@@ -182,30 +198,30 @@ def main_program():
                         data['order_values']['basket_value_net'] = str(KWERT)
                     # Discount
                     case 'Z04G':
-                        incentives_food_vendor_gross_amount = str(KWERT)
+                        incentives_food_vendor_gross_amount = KWERT
                     case 'Z062':
-                        incentives_food_vendor_net_amount = str(KWERT)
+                        incentives_food_vendor_net_amount = KWERT
                     case 'Z04L':
-                        incentives_delivery_vendor_gross_amount = str(KWERT)
+                        incentives_delivery_vendor_gross_amount = KWERT
                     case 'Z04K':
-                        incentives_delivery_vendor_net_amount = str(KWERT)
+                        incentives_delivery_vendor_net_amount = KWERT
                     case 'Z04F' | 'ZC01':  # ZC01 for TW, incl all discounts and vouchers
-                        incentives_food_platform_gross_amount = str(KWERT)
+                        incentives_food_platform_gross_amount = KWERT
                     case 'Z064':
-                        incentives_food_platform_net_amount = str(KWERT)
+                        incentives_food_platform_net_amount = KWERT
                     case 'Z079':
-                        incentives_delivery_platform_gross_amount = str(KWERT)
+                        incentives_delivery_platform_gross_amount = KWERT
                     case 'Z078':
-                        incentives_delivery_platform_net_amount = str(KWERT)
+                        incentives_delivery_platform_net_amount = KWERT
                     # Voucher
                     case 'Z075':
-                        incentives_voucher_vendor_gross_amount = str(KWERT)
+                        incentives_voucher_vendor_gross_amount = KWERT
                     case 'ZVO1':
-                        incentives_voucher_vendor_net_amount = str(KWERT)
+                        incentives_voucher_vendor_net_amount = KWERT
                     case 'Z077':
-                        incentives_voucher_platform_gross_amount = str(KWERT)
+                        incentives_voucher_platform_gross_amount = KWERT
                     case 'Z076':
-                        incentives_voucher_platform_net_amount = str(KWERT)
+                        incentives_voucher_platform_net_amount = KWERT
                     # Delivery
                     case 'Z04D':
                         data['order_values']['delivery_fee_gross'] = str(KWERT)
@@ -316,12 +332,7 @@ def main_program():
             # Comission
             data['revenue']['commission'] = []
 
-            try:
-                commission_standard_amount_net
-            except NameError:
-                commission_standard_amount_net = 0
-                pass
-            else:
+            if commission_standard_amount_net > 0:
                 commission_standard['commission_type'] = 'standard'
                 commission_standard['commission_amount_net'] = str(
                     commission_standard_amount_net)
@@ -330,12 +341,7 @@ def main_program():
                 data['revenue']['commission'].append(
                     commission_standard)
 
-            try:
-                commission_fixed_amount_net
-            except NameError:
-                commission_fixed_amount_net = 0
-                pass
-            else:
+            if commission_fixed_amount_net > 0:
                 commission_fixed['commission_type'] = 'fixed'
                 commission_fixed['commission_amount_net'] = str(
                     commission_fixed_amount_net)
@@ -344,12 +350,7 @@ def main_program():
                 data['revenue']['commission'].append(
                     commission_fixed)
 
-            try:
-                commission_tiers_amount_net
-            except NameError:
-                commission_tiers_amount_net = 0
-                pass
-            else:
+            if commission_tiers_amount_net > 0:
                 commission_tiers['commission_type'] = 'commisson based tiers'
                 commission_tiers['commission_amount_net'] = str(
                     commission_tiers_amount_net)
@@ -364,99 +365,81 @@ def main_program():
                 1+MWST))
 
             # order_values.incentives[]
-            try:
-                incentives_food_vendor_gross_amount
-            except NameError:
-                incentives_food_vendor_gross_amount = 0
-                incentives_food_vendor_net_amount = 0
-            else:
-                incentives_food_vendor['gross_amount'] = incentives_food_vendor_gross_amount
-                incentives_food_vendor['net_amount'] = incentives_food_vendor_net_amount
+            if incentives_food_vendor_gross_amount > 0:
+                incentives_food_vendor['gross_amount'] = str(
+                    incentives_food_vendor_gross_amount)
+                incentives_food_vendor['net_amount'] = str(
+                    incentives_food_vendor_net_amount)
                 incentives_food_vendor['type'] = 'food'
                 incentives_food_vendor['owner'] = 'vendor'
                 incentives_food_vendor['is_voucher'] = 'false'
                 data['order_values']['incentives'].append(
                     incentives_food_vendor)
 
-            try:
-                incentives_food_platform_gross_amount
-            except NameError:
-                incentives_food_platform_gross_amount = 0
-                incentives_food_platform_net_amount = 0
-            else:
-                incentives_food_platform['gross_amount'] = incentives_food_platform_gross_amount
-                incentives_food_platform['net_amount'] = incentives_food_platform_net_amount
+            if incentives_food_platform_gross_amount > 0:
+                incentives_food_platform['gross_amount'] = str(
+                    incentives_food_platform_gross_amount)
+                incentives_food_platform['net_amount'] = str(
+                    incentives_food_platform_net_amount)
                 incentives_food_platform['type'] = 'food'
-                incentives_food_platform['owner'] = 'vendor'
+                incentives_food_platform['owner'] = 'platform'
                 incentives_food_platform['is_voucher'] = 'false'
                 data['order_values']['incentives'].append(
                     incentives_food_platform)
 
-            try:
-                incentives_delivery_vendor_gross_amount
-            except NameError:
-                incentives_delivery_vendor_gross_amount = 0
-                incentives_delivery_vendor_net_amount = 0
-            else:
-                incentives_delivery_vendor['gross_amount'] = incentives_delivery_vendor_gross_amount
-                incentives_delivery_vendor['net_amount'] = incentives_delivery_vendor_net_amount
-                incentives_delivery_vendor['type'] = 'food'
+            if incentives_delivery_vendor_gross_amount > 0:
+                incentives_delivery_vendor['gross_amount'] = str(
+                    incentives_delivery_vendor_gross_amount)
+                incentives_delivery_vendor['net_amount'] = str(
+                    incentives_delivery_vendor_net_amount)
+                incentives_delivery_vendor['type'] = 'delivery'
                 incentives_delivery_vendor['owner'] = 'vendor'
                 incentives_delivery_vendor['is_voucher'] = 'false'
                 data['order_values']['incentives'].append(
                     incentives_delivery_vendor)
 
-            try:
-                incentives_delivery_platform_gross_amount
-            except NameError:
-                incentives_delivery_platform_gross_amount = 0
-                incentives_delivery_platform_net_amount = 0
-            else:
-                incentives_delivery_platform['gross_amount'] = incentives_delivery_platform_gross_amount
-                incentives_delivery_platform['net_amount'] = incentives_delivery_platform_net_amount
-                incentives_delivery_platform['type'] = 'food'
-                incentives_delivery_platform['owner'] = 'vendor'
+            if incentives_delivery_platform_gross_amount > 0:
+                incentives_delivery_platform['gross_amount'] = str(
+                    incentives_delivery_platform_gross_amount)
+                incentives_delivery_platform['net_amount'] = str(
+                    incentives_delivery_platform_net_amount)
+                incentives_delivery_platform['type'] = 'delivery'
+                incentives_delivery_platform['owner'] = 'platform'
                 incentives_delivery_platform['is_voucher'] = 'false'
                 data['order_values']['incentives'].append(
                     incentives_delivery_platform)
 
-            try:
-                incentives_voucher_vendor_gross_amount
-            except NameError:
-                incentives_voucher_vendor_gross_amount = 0
-                incentives_voucher_vendor_net_amount = 0
-            else:
-                incentives_voucher_vendor['gross_amount'] = incentives_voucher_vendor_gross_amount
-                incentives_voucher_vendor['net_amount'] = incentives_voucher_vendor_net_amount
-                incentives_voucher_vendor['type'] = 'food'
+            if incentives_voucher_vendor_gross_amount > 0:
+                incentives_voucher_vendor['gross_amount'] = str(
+                    incentives_voucher_vendor_gross_amount)
+                incentives_voucher_vendor['net_amount'] = str(
+                    incentives_voucher_vendor_net_amount)
+                incentives_voucher_vendor['type'] = 'voucher'
                 incentives_voucher_vendor['owner'] = 'vendor'
                 incentives_voucher_vendor['is_voucher'] = 'true'
                 data['order_values']['incentives'].append(
                     incentives_voucher_vendor)
 
-            try:
-                incentives_voucher_platform_gross_amount
-            except NameError:
-                incentives_voucher_platform_gross_amount = 0
-                incentives_voucher_platform_net_amount = 0
-            else:
-                incentives_voucher_platform['gross_amount'] = incentives_voucher_platform_gross_amount
-                incentives_voucher_platform['net_amount'] = incentives_voucher_platform_net_amount
-                incentives_voucher_platform['type'] = 'food'
-                incentives_voucher_platform['owner'] = 'vendor'
+            if incentives_voucher_platform_gross_amount > 0:
+                incentives_voucher_platform['gross_amount'] = str(
+                    incentives_voucher_platform_gross_amount)
+                incentives_voucher_platform['net_amount'] = str(
+                    incentives_voucher_platform_net_amount)
+                incentives_voucher_platform['type'] = 'voucher'
+                incentives_voucher_platform['owner'] = 'platform'
                 incentives_voucher_platform['is_voucher'] = 'true'
                 data['order_values']['incentives'].append(
                     incentives_voucher_platform)
 
             # order_values.incentive_*
-            data['order_values']['incentive_value_gross_vendor'] = incentives_voucher_vendor_gross_amount + \
-                incentives_food_vendor_gross_amount
-            data['order_values']['incentive_value_net_vendor'] = incentives_voucher_vendor_net_amount + \
-                incentives_food_vendor_net_amount
-            data['order_values']['incentive_value_gross_platform'] = incentives_voucher_platform_gross_amount + \
-                incentives_food_platform_gross_amount
-            data['order_values']['incentive_value_net_platform'] = incentives_voucher_platform_net_amount + \
-                incentives_food_platform_net_amount
+            data['order_values']['incentive_value_gross_vendor'] = str(incentives_voucher_vendor_gross_amount +
+                                                                       incentives_food_vendor_gross_amount)
+            data['order_values']['incentive_value_net_vendor'] = str(incentives_voucher_vendor_net_amount +
+                                                                     incentives_food_vendor_net_amount)
+            data['order_values']['incentive_value_gross_platform'] = str(incentives_voucher_platform_gross_amount +
+                                                                         incentives_food_platform_gross_amount)
+            data['order_values']['incentive_value_net_platform'] = str(incentives_voucher_platform_net_amount +
+                                                                       incentives_food_platform_net_amount)
             data['order_values']['incentive_value_gross_partner'] = 'N/A'
             data['order_values']['incentive_value_net_partner'] = 'N/A'
 
@@ -475,8 +458,10 @@ def main_program():
 
             data['revenue']['payment_provider'] = str(row[5])
 
-            data['revenue']['vendor_funded_delivery_fee_incentive_gross'] = incentives_delivery_vendor_gross_amount
-            data['revenue']['vendor_funded_delivery_fee_incentive_net'] = incentives_delivery_vendor_net_amount
+            data['revenue']['vendor_funded_delivery_fee_incentive_gross'] = str(
+                incentives_delivery_vendor_gross_amount)
+            data['revenue']['vendor_funded_delivery_fee_incentive_net'] = str(
+                incentives_delivery_vendor_net_amount)
 
             data['revenue']['tax_charge'] = str(row[8])
 
