@@ -1,0 +1,12 @@
+{
+    "HANA_DB_cred": {
+        "address": "dlhsapdp1db.sap-deliveryhero.com",
+        "SID": "DP1",
+        "port": "30041",
+        "user": "",
+        "password": ""
+    },
+    "LogFile": {
+        "path": "log.txt"
+    }
+}
