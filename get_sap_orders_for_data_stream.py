@@ -128,6 +128,7 @@ def main_program():
             # Initialize to have the right order in JSON
             data['customer_paid_amount'] = ''
 
+            data['cash_amount_collected_by_vendor'] = 'TODO'
             data['vendor_net_revenue'] = data['vendor_payout']
             data['is_cancelled'] = is_cancelled
 
@@ -261,7 +262,7 @@ def main_program():
                     case 'Z051':
                         customer_paid_amount = 0 - KWERT
                         # data['payment']['type'] = 'corporate'
-                        data['revenue']['payment_type'] = 'corporate'
+                        data['revenue']['payment_type'] = 'invoice'
                     case 'Z050' | 'Z053':
                         customer_paid_amount = 0 - KWERT
                         # data['payment']['type'] = 'cash'
@@ -287,12 +288,12 @@ def main_program():
                         data['revenue']['commission_base'] = str(KWERT)
                         commission_standard['commission_base'] = str(KWERT)
                     case 'ZCP2':
-                        commission_standard['commision_rate'] = str(KBETR)
+                        commission_standard['commission_rate'] = str(KBETR)
                         commission_standard_amount_net = KWERT
                     case 'Z02T' | 'Z04A':
                         data['revenue']['commission_base'] = str(KWERT)
                         commission_tiers['commission_base'] = str(KWERT)
-                        commission_tiers['commision_rate'] = str(KBETR)
+                        commission_tiers['commission_rate'] = str(KBETR)
                         commission_tiers_amount_net = KWERT
                     case 'ZCP1':
                         commission_fixed_amount_net = KWERT
@@ -354,6 +355,7 @@ def main_program():
 
             if commission_fixed_amount_net > 0:
                 commission_fixed['commission_type'] = 'fixed'
+                commission_fixed['commission_service_type'] = 'TODO'
                 commission_fixed['commission_amount_net'] = str(
                     commission_fixed_amount_net)
                 commission_fixed['commission_amount_gross'] = str(commission_fixed_amount_net * (
@@ -381,9 +383,9 @@ def main_program():
                     incentives_food_vendor_gross_amount)
                 incentives_food_vendor['net_amount'] = str(
                     incentives_food_vendor_net_amount)
-                incentives_food_vendor['type'] = 'food'
-                incentives_food_vendor['owner'] = 'vendor'
-                incentives_food_vendor['is_voucher'] = 'false'
+                incentives_food_vendor['type'] = 'amount'
+                incentives_food_vendor['category '] = 'discount'
+                incentives_food_vendor['sponsor'] = 'vendor'
                 data['order_values']['incentives'].append(
                     incentives_food_vendor)
 
@@ -392,9 +394,9 @@ def main_program():
                     incentives_food_platform_gross_amount)
                 incentives_food_platform['net_amount'] = str(
                     incentives_food_platform_net_amount)
-                incentives_food_platform['type'] = 'food'
-                incentives_food_platform['owner'] = 'platform'
-                incentives_food_platform['is_voucher'] = 'false'
+                incentives_food_platform['type'] = 'amount'
+                incentives_food_platform['category '] = 'discount'
+                incentives_food_platform['sponsor'] = 'platform'
                 data['order_values']['incentives'].append(
                     incentives_food_platform)
 
@@ -403,9 +405,9 @@ def main_program():
                     incentives_delivery_vendor_gross_amount)
                 incentives_delivery_vendor['net_amount'] = str(
                     incentives_delivery_vendor_net_amount)
-                incentives_delivery_vendor['type'] = 'delivery'
-                incentives_delivery_vendor['owner'] = 'vendor'
-                incentives_delivery_vendor['is_voucher'] = 'false'
+                incentives_delivery_vendor['type'] = 'delivery_fee'
+                incentives_delivery_vendor['category'] = 'discount'
+                incentives_delivery_vendor['sponsor'] = 'vendor'
                 data['order_values']['incentives'].append(
                     incentives_delivery_vendor)
 
@@ -414,9 +416,9 @@ def main_program():
                     incentives_delivery_platform_gross_amount)
                 incentives_delivery_platform['net_amount'] = str(
                     incentives_delivery_platform_net_amount)
-                incentives_delivery_platform['type'] = 'delivery'
-                incentives_delivery_platform['owner'] = 'platform'
-                incentives_delivery_platform['is_voucher'] = 'false'
+                incentives_delivery_platform['type'] = 'delivery_fee'
+                incentives_delivery_platform['category'] = 'discount'
+                incentives_delivery_platform['sponsor'] = 'platform'
                 data['order_values']['incentives'].append(
                     incentives_delivery_platform)
 
@@ -425,9 +427,9 @@ def main_program():
                     incentives_voucher_vendor_gross_amount)
                 incentives_voucher_vendor['net_amount'] = str(
                     incentives_voucher_vendor_net_amount)
-                incentives_voucher_vendor['type'] = 'voucher'
-                incentives_voucher_vendor['owner'] = 'vendor'
-                incentives_voucher_vendor['is_voucher'] = 'true'
+                incentives_voucher_vendor['type'] = 'amount'
+                incentives_voucher_vendor['category '] = 'voucher'
+                incentives_voucher_vendor['sponsor'] = 'vendor'
                 data['order_values']['incentives'].append(
                     incentives_voucher_vendor)
 
@@ -436,9 +438,9 @@ def main_program():
                     incentives_voucher_platform_gross_amount)
                 incentives_voucher_platform['net_amount'] = str(
                     incentives_voucher_platform_net_amount)
-                incentives_voucher_platform['type'] = 'voucher'
-                incentives_voucher_platform['owner'] = 'platform'
-                incentives_voucher_platform['is_voucher'] = 'true'
+                incentives_voucher_platform['type'] = 'amount'
+                incentives_voucher_platform['category'] = 'voucher'
+                incentives_voucher_platform['sponsor'] = 'platform'
                 data['order_values']['incentives'].append(
                     incentives_voucher_platform)
 
@@ -468,6 +470,7 @@ def main_program():
                 (ZOC2 + ZOC1) * (1 + MWST))
 
             data['revenue']['payment_provider'] = str(row[5])
+            data['revenue']['payment_method'] = 'TODO'
 
             data['revenue']['vendor_funded_delivery_fee_incentive_gross'] = str(
                 incentives_delivery_vendor_gross_amount)
