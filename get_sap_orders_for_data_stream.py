@@ -129,7 +129,7 @@ def main_program():
             data['customer_paid_amount'] = ''
 
             data['cash_amount_collected_by_vendor'] = 'TODO'
-            data['vendor_net_revenue'] = data['vendor_payout']
+            data['estimated_vendor_net_revenue'] = data['vendor_payout']
             data['is_cancelled'] = is_cancelled
 
             data['is_vendor_payout_paid'] = 'TODO'
